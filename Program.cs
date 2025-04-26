@@ -1,4 +1,4 @@
-﻿/*using System;
+﻿using System;
 using Telegram_Task_Bot;
 using DotNetEnv;
 
@@ -17,16 +17,19 @@ class Program
         {
             Console.WriteLine("TELEGRAM TOKEN found!");
         }
-        Host tgBot = new Host(Environment.GetEnvironmentVariable("TELEGRAMBOT_API_KEY"), Environment.GetEnvironmentVariable("OPENAI_API_KEY"));
+
+        BotHost tgBot = new BotHost(Environment.GetEnvironmentVariable("TELEGRAMBOT_API_KEY"), Environment.GetEnvironmentVariable("OPENAI_API_KEY"));
         tgBot.Start();
         Console.ReadLine();
     }
 }
-*/
+
+/*
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Microsoft.Extensions.DependencyInjection;
 using DotNetEnv;
+using Telegram_Task_Bot;
 
 Env.Load();
 
@@ -39,15 +42,15 @@ var app = builder.Build();
 
 // Реєструємо Webhook
 var botClient = app.Services.GetRequiredService<TelegramBotClient>();
-var webhookUrl = "https://твій-домен/bot";
+var webhookUrl = "https://den.42web.io/bot";
 await botClient.SetWebhook(webhookUrl);
 
 // Створюємо маршрут для обробки вхідних оновлень
 app.MapPost("/bot", async (TelegramBotClient botClient, Update update) =>
 {
     // ТУТ ВИКЛИКАЄШ свою UpdateHandler
-    var host = new Host(botClient, Environment.GetEnvironmentVariable("OPENAI_API_KEY"));
+    var host = new BotHost(botClient, Environment.GetEnvironmentVariable("OPENAI_API_KEY"));
     await host.UpdateHandler(botClient, update, default);
 });
 
-app.Run();
+app.Run();*/
