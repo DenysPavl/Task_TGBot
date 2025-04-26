@@ -41,6 +41,7 @@ namespace Telegram_Task_Bot
 
         private async Task UpdateHandler(ITelegramBotClient client, Update update, CancellationToken token)
         {
+            Console.WriteLine("Received update");
            if (update.CallbackQuery != null)
             {
                 var chatId = update.CallbackQuery.Message.Chat.Id;
