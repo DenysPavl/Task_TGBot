@@ -34,6 +34,7 @@ Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.UseUrls($"http://0.0.0.0:300");
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<TelegramBotClient>(new TelegramBotClient(Environment.GetEnvironmentVariable("TELEGRAMBOT_API_KEY")));
 
