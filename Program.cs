@@ -34,25 +34,35 @@ Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.WebHost.UseUrls($"http://0.0.0.0:300");
+// Беремо порт з середовища або ставимо дефолтний
+var port = Environment.GetEnvironmentVariable("PORT") ?? "3000";
+
+// Сервіси
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<TelegramBotClient>(new TelegramBotClient(Environment.GetEnvironmentVariable("TELEGRAMBOT_API_KEY")));
 
 var app = builder.Build();
 
-// Створення екземпляра Host
-var host = new BotHost(Environment.GetEnvironmentVariable("TELEGRAMBOT_API_KEY"), Environment.GetEnvironmentVariable("OPENAI_API_KEY"));
+// Додаємо правильні URL-и
+app.Urls.Add($"http://0.0.0.0:{port}");
 
-// Налаштування Webhook
-var webhookUrl = "https://tasktgbot-production.up.railway.app/bot";  // Тут має бути правильний URL
+// Створення екземпляра бота
+var host = new BotHost(
+    Environment.GetEnvironmentVariable("TELEGRAMBOT_API_KEY"),
+    Environment.GetEnvironmentVariable("OPENAI_API_KEY")
+);
+
+// Встановлення Webhook
+var webhookUrl = "https://tasktgbot-production.up.railway.app/bot";  // Твій правильний URL
 await host.SetWebhook(webhookUrl);
 
-// Створюємо маршрут для обробки вхідних оновлень
+// Обробник Webhook запиту
 app.MapPost("/bot", async (HttpRequest request, TelegramBotClient botClient) =>
 {
     try
     {
         var update = await request.ReadFromJsonAsync<Update>();
+
         if (update != null)
         {
             await host.UpdateHandler(botClient, update, default);
@@ -60,12 +70,12 @@ app.MapPost("/bot", async (HttpRequest request, TelegramBotClient botClient) =>
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Error in webhook: {ex.Message}");
+        Console.WriteLine($"Error processing update: {ex.Message}");
     }
 
-    return Results.Ok(); // обов'язково повернути 200 OK
+    return Results.Ok(); // Обов'язково повертаємо 200 OK
 });
 
-
 app.Run();
+
 
