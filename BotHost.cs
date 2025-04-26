@@ -33,6 +33,11 @@ namespace Telegram_Task_Bot
             Console.WriteLine("Start!");
         }
 
+        public async Task SetWebhook(string webhookUrl)
+        {
+            await _bot.SetWebhook(webhookUrl); // Використовуємо SetWebhookAsync
+            Console.WriteLine($"Webhook set to: {webhookUrl}");
+        }
 
         private async Task ErrorHandler(ITelegramBotClient client, Exception exception, HandleErrorSource source, CancellationToken token)
         {

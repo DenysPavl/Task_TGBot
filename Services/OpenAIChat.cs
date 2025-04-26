@@ -43,6 +43,7 @@ namespace Telegram_Task_Bot.Services
             using var doc = JsonDocument.Parse(responseContent);
             var message = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
             return message;
+
         }
     }
 }
