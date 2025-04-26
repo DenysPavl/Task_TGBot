@@ -35,7 +35,7 @@ Env.Load();
 var builder = WebApplication.CreateBuilder(args);
 
 // Беремо порт з середовища або ставимо дефолтний
-var port = Environment.GetEnvironmentVariable("PORT") ?? "3000";
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 
 // Сервіси
 builder.Services.AddHttpClient();
