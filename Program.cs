@@ -47,13 +47,14 @@ var app = builder.Build();
 app.Urls.Add($"http://0.0.0.0:{port}");
 
 // Створення екземпляра бота
-var host = new BotHost(
-    Environment.GetEnvironmentVariable("TELEGRAMBOT_API_KEY"),
-    Environment.GetEnvironmentVariable("OPENAI_API_KEY")
-);
+// Створення екземпляра Host
+var host = new BotHost(Environment.GetEnvironmentVariable("TELEGRAMBOT_API_KEY"), Environment.GetEnvironmentVariable("OPENAI_API_KEY"));
 
-// Встановлення Webhook
-var webhookUrl = "https://tasktgbot-production.up.railway.app/bot";  // Твій правильний URL
+// Скидання вебхука
+await host.SetWebhook(""); // Спочатку очищаємо існуючий вебхук
+
+// Налаштування нового вебхука
+var webhookUrl = "https://tasktgbot-production.up.railway.app/bot";
 await host.SetWebhook(webhookUrl);
 
 // Обробник Webhook запиту
@@ -65,7 +66,14 @@ app.MapPost("/bot", async (HttpRequest request, TelegramBotClient botClient) =>
 
         if (update != null)
         {
+            Console.WriteLine("Received update:");
+            Console.WriteLine(update); // Логувати сам об'єкт update
+
             await host.UpdateHandler(botClient, update, default);
+        }
+        else
+        {
+            Console.WriteLine("No update received.");
         }
     }
     catch (Exception ex)
@@ -73,8 +81,9 @@ app.MapPost("/bot", async (HttpRequest request, TelegramBotClient botClient) =>
         Console.WriteLine($"Error processing update: {ex.Message}");
     }
 
-    return Results.Ok(); // Обов'язково повертаємо 200 OK
+    return Results.Ok(); // Завжди повертаємо 200 OK
 });
+
 
 app.Run();
 
