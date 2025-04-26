@@ -27,11 +27,12 @@ namespace Telegram_Task_Bot
             _bot = new TelegramBotClient(token);
             _openAI = new OpenAIChat(openAI_key);
         }
-        public void Start()
+        public async Task SetWebhookAsync(string webhookUrl)
         {
-            _bot.StartReceiving(UpdateHandler, ErrorHandler);
-            Console.WriteLine("Start!");
+            await _bot.SetWebhook(webhookUrl);
+            Console.WriteLine($"Webhook set to: {webhookUrl}");
         }
+
 
         private async Task ErrorHandler(ITelegramBotClient client, Exception exception, HandleErrorSource source, CancellationToken token)
         {
@@ -39,7 +40,7 @@ namespace Telegram_Task_Bot
             await Task.CompletedTask;
         }
 
-        private async Task UpdateHandler(ITelegramBotClient client, Update update, CancellationToken token)
+        public async Task UpdateHandler(ITelegramBotClient client, Update update, CancellationToken token)
         {
             Console.WriteLine("Received update");
            if (update.CallbackQuery != null)
