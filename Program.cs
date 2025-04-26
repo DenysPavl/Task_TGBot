@@ -48,10 +48,24 @@ var webhookUrl = "https://tasktgbot-production.up.railway.app/bot";  // Тут �
 await host.SetWebhook(webhookUrl);
 
 // Створюємо маршрут для обробки вхідних оновлень
-app.MapPost("/bot", async (TelegramBotClient botClient, Update update) =>
+app.MapPost("/bot", async (HttpRequest request, TelegramBotClient botClient) =>
 {
-    await host.UpdateHandler(botClient, update, default);
+    try
+    {
+        var update = await request.ReadFromJsonAsync<Update>();
+        if (update != null)
+        {
+            await host.UpdateHandler(botClient, update, default);
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error in webhook: {ex.Message}");
+    }
+
+    return Results.Ok(); // обов'язково повернути 200 OK
 });
+
 
 app.Run();
 
