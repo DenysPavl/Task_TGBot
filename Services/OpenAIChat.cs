@@ -5,9 +5,9 @@ namespace Telegram_Task_Bot.Services
 {
     public class OpenAIChat
     {
-        private readonly HttpClient _httpClient;
-        private readonly string _apiKey;
-        private readonly string _model = "deepseek/deepseek-chat-v3-0324:free"; // Модель OpenRouter
+        private readonly HttpClient _httpClient;                                // HTTP client for API requests
+        private readonly string _apiKey;                                        // API key for authentication
+        private readonly string _model = "deepseek/deepseek-chat-v3-0324:free"; // OpenRouter model
 
         public OpenAIChat(string apiKey)
         {
@@ -18,6 +18,7 @@ namespace Telegram_Task_Bot.Services
 
         public async Task<string> GetResponse(string userMessage)
         {
+            // Prepare the request body according to the OpenRouter API format
             var requestBody = new
             {
                 model = _model,
@@ -28,9 +29,11 @@ namespace Telegram_Task_Bot.Services
                 }
             };
 
+            // Serialize the request body to JSON
             var json = JsonSerializer.Serialize(requestBody);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+            // Send POST request to OpenRouter endpoint
             var response = await _httpClient.PostAsync("https://openrouter.ai/api/v1/chat/completions", content);
 
             if (!response.IsSuccessStatusCode)
@@ -39,10 +42,12 @@ namespace Telegram_Task_Bot.Services
                 throw new Exception($"Error: {response.StatusCode}\n{error}");
             }
 
+            // Read and parse the JSON response
             var responseContent = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(responseContent);
-            var message = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
-            return message;
+
+            // Return the extracted generated message from JSON
+            return doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
 
         }
     }

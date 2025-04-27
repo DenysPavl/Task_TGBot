@@ -17,9 +17,9 @@ namespace Telegram_Task_Bot
     {
         TelegramBotClient _bot;
         private readonly OpenAIChat _openAI;
-        private static readonly ConcurrentDictionary<long, string> _userState = new ConcurrentDictionary<long, string>();
-        private static readonly ConcurrentDictionary<long, string> _userLastMode = new();
-        private static readonly ConcurrentDictionary<long, UserDocumentData> _userData = new ConcurrentDictionary <long, UserDocumentData>();
+        private static readonly ConcurrentDictionary<long, string> _userState = new ConcurrentDictionary<long, string>();                      // User states (passport/license)
+        private static readonly ConcurrentDictionary<long, string> _userLastMode = new();                                                      // User's last mode (passport/license)
+        private static readonly ConcurrentDictionary<long, UserDocumentData> _userData = new ConcurrentDictionary <long, UserDocumentData>();  // User extracted document data
 
         public BotHost(string token, string openAI_key)
         {
@@ -27,17 +27,20 @@ namespace Telegram_Task_Bot
             _openAI = new OpenAIChat(openAI_key);
         }
 
-        public async Task SetWebhook(string webhookUrl)
+        // Set webhook for receiving updates
+        public async Task SetWebhook(string webhookUrl)    
         {
             await _bot.SetWebhook(webhookUrl); 
             Console.WriteLine($"Webhook set to: {webhookUrl}");
         }
 
+        // Main update handler for all types of updates
         public async Task UpdateHandler(ITelegramBotClient client, Update update, CancellationToken token)
         {
             Console.WriteLine("Received update");
 
-           if (update.CallbackQuery != null)
+            // Handle button presses (callback queries)
+            if (update.CallbackQuery != null)
             {
                 var chatId = update.CallbackQuery.Message.Chat.Id;
                 var callbackData = update.CallbackQuery.Data;
@@ -57,18 +60,19 @@ namespace Telegram_Task_Bot
                 {
                     await client.EditMessageReplyMarkup(chatId: chatId, messageId: update.CallbackQuery.Message.MessageId); // The keyboard disappears
 
-                    if (string.IsNullOrEmpty(_userData[chatId].PassportIdNumber))
+                    if (string.IsNullOrEmpty(_userData[chatId].PassportIdNumber))  // Check if data is complete
                     {
                         _userState[chatId] = "passport";
                         await client.SendMessage(chatId, "There was an error with your passport data! Please send a photo of your passport.");
                     }
-                    else if (string.IsNullOrEmpty(_userData[chatId].DriversLicenseIdNumber))
+                    else if (string.IsNullOrEmpty(_userData[chatId].DriversLicenseIdNumber)) // Check if data is complete
                     {
                         _userState[chatId] = "license";
                         await client.SendMessage(chatId, "There was an error with your driver's license data! Please send a photo of your driver's license.");
                     }
-                    else 
+                    else
                         await client.SendMessage(chatId, $"📄 Your insurance policy:\n\n{GenerateInsurancePolicy(_userData[chatId].GivenName, _userData[chatId].Surname, _userData[chatId].PassportIdNumber, _userData[chatId].DriversLicenseIdNumber)}");
+
                 }
                 else if (callbackData == "disagree")
                 {
@@ -79,8 +83,8 @@ namespace Telegram_Task_Bot
 
             if (update.Message == null)
                 return;
-            
-            Console.WriteLine(update.Message?.Text);
+
+            // Handle incoming text messages
             if (update.Message?.Text != null)
             {
                 var chatId = update.Message.Chat.Id;
@@ -88,23 +92,21 @@ namespace Telegram_Task_Bot
                 switch (text)
                 {
                     case "/start":
-                        await client.SendMessage(chatId,
-                            "Hello! This is a bot for purchasing auto insurance.\n" +
-                            "Command:\n" +
-                            "/insurance - start of car insurance registration.");
+                        await client.SendMessage(chatId, "Hello! This is a bot for purchasing auto insurance.\n" +"Command:\n" +"/insurance - start of car insurance registration.");
                         return;
                     case "/insurance":
                         _userState[chatId] = "passport";
-                        _userData[chatId] = new UserDocumentData(); // Обнуляємо попередні дані
+                        _userData[chatId] = new UserDocumentData(); // Reset previous data
                         await client.SendMessage(chatId, "Let's start applying for car insurance. First, send a passport photo.");
                         return;
                     default:
-                        var reply = await _openAI.GetResponse(text);
+                        var reply = await _openAI.GetResponse(text);  // get response from OpenAiChat service
                         await client.SendMessage(chatId, reply);
                         break;
                 }
             }
-            
+
+            // Handle incoming photo messages
             if (update.Message?.Photo != null)
             {
                 var chatId = update.Message.Chat.Id;
@@ -119,10 +121,12 @@ namespace Telegram_Task_Bot
             }
             await Task.CompletedTask;
         }
+
+        // Processing photo based on current mode (passport or license)
         private async Task ProcessPhotoMessage(ITelegramBotClient client, Message message, string mode, CancellationToken token)
         {
             var chatId = message.Chat.Id;
-            var fileId = message.Photo[^1].FileId;
+            var fileId = message.Photo[^1].FileId; // Get the highest resolution photo
             var file = await client.GetFile(fileId, cancellationToken: token);
 
             var photosDir = Path.Combine(AppContext.BaseDirectory, "photos");
@@ -131,21 +135,23 @@ namespace Telegram_Task_Bot
             var localFileName = $"{fileId}.jpg";
             var localFilePath = Path.Combine(photosDir, localFileName);
 
+            // Save photo locally
             await using (var fs = new FileStream(localFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
                 await client.DownloadFile(file.FilePath, fs, cancellationToken: token);
             }
 
-            Console.WriteLine($"Image saved to {localFilePath}");
-
+            //Console.WriteLine($"Image saved to {localFilePath}");
             string extractedData;
             if (mode == "passport")
                 extractedData = await ProcessPassport(localFilePath, chatId);
             else
                 extractedData = await ProcessLicense(localFilePath, chatId);
 
+            // Send extracted data
             await client.SendMessage(chatId, $"Document processed. Extracted data: {extractedData} " + ParseMode.Markdown);
 
+            // Switch to next step
             if (mode == "passport")
             {
                 _userState[chatId] = "license";
@@ -158,6 +164,7 @@ namespace Telegram_Task_Bot
 
         }
 
+        // Extract data from passport photo
         private async Task<string> ProcessPassport(string localFilePath,long chatId)
         {
             var apiKey = "4c74ae489bac335b569bb4771391c646";
@@ -194,7 +201,7 @@ namespace Telegram_Task_Bot
                     BirthPlace = birthPlace
                 };
 
-                _userData[chatId] = userData;             // Зберігаємо дані в ConcurrentDictionary
+                _userData[chatId] = userData;             // We store data in a ConcurrentDictionary
 
                 return
                     $"📄 **Passport Data:**\n" +
@@ -213,6 +220,8 @@ namespace Telegram_Task_Bot
                 return $"Error processing image";
             }
         }
+
+        // Extract data from driver's license photo
         private async Task<string> ProcessLicense(string localFilePath, long chatId)
         {
             var apiKey = "4c74ae489bac335b569bb4771391c646";
@@ -246,6 +255,7 @@ namespace Telegram_Task_Bot
             }
         }
 
+        // Generate insurance policy text
         private string GenerateInsurancePolicy(string firstName, string surName, string licenseId, string passportId)
         {
             return "INSURANCE POLICY\n\n" +
@@ -259,7 +269,7 @@ namespace Telegram_Task_Bot
                     "Thank you for using our service!";
         }
 
-        InlineKeyboardMarkup DataValidationKeyboard = new (new[]             // keyboard for data validation
+        InlineKeyboardMarkup DataValidationKeyboard = new (new[]             // keyboard for data validation (Correct / Resend)
         {
             new[]
             {
@@ -267,7 +277,7 @@ namespace Telegram_Task_Bot
                 InlineKeyboardButton.WithCallbackData("Resend", "resend")
             }
         });
-        InlineKeyboardMarkup InsuranceConsentKeyboard = new(new[]     // keyboard for insurance consent
+        InlineKeyboardMarkup InsuranceConsentKeyboard = new(new[]     // keyboard for insurance consent (Agree / Disagree)
         {
              new[] {
                   InlineKeyboardButton.WithCallbackData("Agree", "agree"),
