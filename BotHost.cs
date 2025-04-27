@@ -1,5 +1,4 @@
 ﻿using Telegram.Bot;
-using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Mindee;
 using Mindee.Input;
@@ -27,22 +26,11 @@ namespace Telegram_Task_Bot
             _bot = new TelegramBotClient(token);
             _openAI = new OpenAIChat(openAI_key);
         }
-        public void Start()
-        {
-            _bot.StartReceiving(UpdateHandler, ErrorHandler);
-            Console.WriteLine("Start!");
-        }
 
         public async Task SetWebhook(string webhookUrl)
         {
-            await _bot.SetWebhook(webhookUrl); // Використовуємо SetWebhookAsync
+            await _bot.SetWebhook(webhookUrl); 
             Console.WriteLine($"Webhook set to: {webhookUrl}");
-        }
-
-        private async Task ErrorHandler(ITelegramBotClient client, Exception exception, HandleErrorSource source, CancellationToken token)
-        {
-            Console.WriteLine("Error: " + exception.Message);
-            await Task.CompletedTask;
         }
 
         public async Task UpdateHandler(ITelegramBotClient client, Update update, CancellationToken token)
@@ -56,35 +44,35 @@ namespace Telegram_Task_Bot
 
                 if (callbackData == "correct")
                 {
-                    await client.EditMessageReplyMarkup(chatId: chatId, messageId: update.CallbackQuery.Message.MessageId); // Зникає клавіатура
-                    await client.SendMessage(chatId, "Ціна страховки — $100. Ви згодні?", replyMarkup: InsuranceConsentKeyboard);
+                    await client.EditMessageReplyMarkup(chatId: chatId, messageId: update.CallbackQuery.Message.MessageId); // The keyboard disappears
+                    await client.SendMessage(chatId, "The price of insurance is $100. Do you agree?", replyMarkup: InsuranceConsentKeyboard);
                 }
                 else if (callbackData == "resend")
                 {
-                    await client.EditMessageReplyMarkup(chatId: chatId, messageId: update.CallbackQuery.Message.MessageId); // Зникає клавіатура
+                    await client.EditMessageReplyMarkup(chatId: chatId, messageId: update.CallbackQuery.Message.MessageId); // The keyboard disappears
                     _userState[chatId] = "passport";
-                    await client.SendMessage(chatId, "Будь ласка, надішліть фотографію паспорта ще раз.");
+                    await client.SendMessage(chatId, "Please send your passport photo again.");
                 }
                 else if (callbackData == "agree")
                 {
-                    await client.EditMessageReplyMarkup(chatId: chatId, messageId: update.CallbackQuery.Message.MessageId); // Зникає клавіатура
+                    await client.EditMessageReplyMarkup(chatId: chatId, messageId: update.CallbackQuery.Message.MessageId); // The keyboard disappears
 
                     if (string.IsNullOrEmpty(_userData[chatId].PassportIdNumber))
                     {
                         _userState[chatId] = "passport";
-                        await client.SendMessage(chatId, "Сталася помилка з даними з вашого паспорта! Будь ласка, надішліть фотографію вашого паспорта.");
+                        await client.SendMessage(chatId, "There was an error with your passport data! Please send a photo of your passport.");
                     }
                     else if (string.IsNullOrEmpty(_userData[chatId].DriversLicenseIdNumber))
                     {
                         _userState[chatId] = "license";
-                        await client.SendMessage(chatId, "Сталася помилка з даними з ваших водійських прав! Будь ласка, надішліть фотографію ваших водійських прав.");
+                        await client.SendMessage(chatId, "There was an error with your driver's license data! Please send a photo of your driver's license.");
                     }
                     else 
-                        await client.SendMessage(chatId, $"📄 Ваш страховий поліс:\n\n{GenerateInsurancePolicy(_userData[chatId].GivenName, _userData[chatId].Surname, _userData[chatId].PassportIdNumber, _userData[chatId].DriversLicenseIdNumber)}");
+                        await client.SendMessage(chatId, $"📄 Your insurance policy:\n\n{GenerateInsurancePolicy(_userData[chatId].GivenName, _userData[chatId].Surname, _userData[chatId].PassportIdNumber, _userData[chatId].DriversLicenseIdNumber)}");
                 }
                 else if (callbackData == "disagree")
                 {
-                    await client.SendMessage(chatId, "Вибачте, але $100 — єдина доступна ціна.");
+                    await client.SendMessage(chatId, "Sorry, but $100 is the only available price.");
                 }
                 return;
             }
@@ -101,14 +89,14 @@ namespace Telegram_Task_Bot
                 {
                     case "/start":
                         await client.SendMessage(chatId,
-                            "Привіт! Це бот для придбання автостраховки.\n" +
-                            "Команди:\n" +
-                            "/insurance - початок оформлення автостраховки.");
+                            "Hello! This is a bot for purchasing auto insurance.\n" +
+                            "Command:\n" +
+                            "/insurance - start of car insurance registration.");
                         return;
                     case "/insurance":
                         _userState[chatId] = "passport";
                         _userData[chatId] = new UserDocumentData(); // Обнуляємо попередні дані
-                        await client.SendMessage(chatId, "Починаємо оформлення автостраховки. Спершу, надішліть фото паспорта.");
+                        await client.SendMessage(chatId, "Let's start applying for car insurance. First, send a passport photo.");
                         return;
                     default:
                         var reply = await _openAI.GetResponse(text);
@@ -122,7 +110,7 @@ namespace Telegram_Task_Bot
                 var chatId = update.Message.Chat.Id;
                 if (!_userState.TryGetValue(chatId, out var mode))
                 {
-                    await client.SendMessage(chatId, "Будь ласка, виберіть спочатку команду /insurance");
+                    await client.SendMessage(chatId, "First, select the /insurance command.");
                     return;
                 }
                   _userLastMode[chatId] = mode;
@@ -161,11 +149,11 @@ namespace Telegram_Task_Bot
             if (mode == "passport")
             {
                 _userState[chatId] = "license";
-                await client.SendMessage(chatId, "Дякуємо! Тепер, будь ласка, надішліть фото водійського посвідчення.");
+                await client.SendMessage(chatId, "Now, please send a photo of your driver's license.");
             }
             else if (mode == "license")
             {
-                await client.SendMessage(chatId, $"Будь ласка, підтвердіть правильність даних вище:", replyMarkup: DataValidationKeyboard);
+                await client.SendMessage(chatId, $"Please confirm the accuracy of the data above.:", replyMarkup: DataValidationKeyboard);
             }
 
         }
@@ -222,7 +210,7 @@ namespace Telegram_Task_Bot
             catch (Exception ex)
             {
                 Console.WriteLine($"Error processing image: {ex.Message}");
-                return $"Error processing image: {ex.Message}";
+                return $"Error processing image";
             }
         }
         private async Task<string> ProcessLicense(string localFilePath, long chatId)
@@ -238,9 +226,9 @@ namespace Telegram_Task_Bot
                 var response = await mindeeClient
                      .EnqueueAndParseAsync<DriverLicenseV1>(inputSource);
 
-                var p = response.Document.Inference.Prediction;   // Якщо відповідь успішна, повертаємо дані
+                var p = response.Document.Inference.Prediction;
 
-                _userData[chatId].DriversLicenseIdNumber = p.Id.Value;                // Зберігаємо дані в ConcurrentDictionary
+                _userData[chatId].DriversLicenseIdNumber = p.Id.Value;    // We store data in a ConcurrentDictionary
 
                 return
                     $"🚗 **Driver's License Data:**\n" +
@@ -254,36 +242,36 @@ namespace Telegram_Task_Bot
             catch (Exception ex)
             {
                 Console.WriteLine($"Error processing image: {ex.Message}");
-                return $"Error processing image: {ex.Message}";
+                return $"Error processing image";
             }
         }
 
         private string GenerateInsurancePolicy(string firstName, string surName, string licenseId, string passportId)
         {
-            return "СТРАХОВИЙ ПОЛІС\n\n" +
-                   $"Страхувальник: {firstName} {surName}\n" +
-                   $"Passport ID Number: {passportId}\n" +
-                   $"Driver's License ID Number: {licenseId}\n" +
-                   "Номер поліса: POL123456789\n" +
-                   "Дата видачі: " + DateTime.Now.ToString("yyyy-MM-dd") + "\n" +
-                   "Сума покриття: $100,000\n" +
-                   "Ціна: $100\n\n" +
-                   "Дякуємо за користування нашим сервісом!";
+            return "INSURANCE POLICY\n\n" +
+                    $"Policyholder: {firstName} {surName}\n" +
+                    $"Passport ID Number: {passportId}\n" +
+                    $"Driver's License ID Number: {licenseId}\n" +
+                    "Policy Number: POL123456789\n" +
+                    "Issue Date: " + DateTime.Now.ToString("yyyy-MM-dd") + "\n" +
+                    "Coverage Amount: $100,000\n" +
+                    "Price: $100\n\n" +
+                    "Thank you for using our service!";
         }
 
         InlineKeyboardMarkup DataValidationKeyboard = new (new[]             // keyboard for data validation
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("Все вірно", "correct"),
-                InlineKeyboardButton.WithCallbackData("Надіслати наново", "resend")
+                InlineKeyboardButton.WithCallbackData("Correct", "correct"),
+                InlineKeyboardButton.WithCallbackData("Resend", "resend")
             }
         });
         InlineKeyboardMarkup InsuranceConsentKeyboard = new(new[]     // keyboard for insurance consent
         {
              new[] {
-                  InlineKeyboardButton.WithCallbackData("Згоден", "agree"),
-                  InlineKeyboardButton.WithCallbackData("Не згоден", "disagree")
+                  InlineKeyboardButton.WithCallbackData("Agree", "agree"),
+                  InlineKeyboardButton.WithCallbackData("Disagree", "disagree")
              }
         });
     }
