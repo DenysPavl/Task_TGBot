@@ -91,16 +91,13 @@ namespace Telegram_Task_Bot
                 var text = update.Message.Text.Trim().ToLower();
                 switch (text)
                 {
-                    case "/start":
-                        await client.SendMessage(chatId, "Hello! This is a bot for purchasing auto insurance.\n" +"Command:\n" +"/insurance - start of car insurance registration.");
-                        return;
                     case "/insurance":
                         _userState[chatId] = "passport";
                         _userData[chatId] = new UserDocumentData(); // Reset previous data
                         await client.SendMessage(chatId, "Let's start applying for car insurance. First, send a passport photo.");
                         return;
                     default:
-                        var reply = await _openAI.GetResponse(text);  // get response from OpenAiChat service
+                        var reply = await _openAI.GetResponse(chatId, text);  // get response from OpenAiChat service
                         await client.SendMessage(chatId, reply);
                         break;
                 }
@@ -175,8 +172,7 @@ namespace Telegram_Task_Bot
             {
                 var inputSource = new LocalInputSource(localFilePath);
 
-                var response = await mindeeClient
-                    .ParseAsync<PassportV1>(inputSource);
+                var response = await mindeeClient.ParseAsync<PassportV1>(inputSource);
 
                 // Якщо відповідь успішна, повертаємо дані
                 var p = response.Document.Inference.Prediction;
