@@ -12,7 +12,8 @@ namespace Telegram_Task_Bot.Services
     {
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
-        private readonly string _model = "deepseek/deepseek-chat-v3-0324:free"; // Model OpenRouter
+       // private readonly string _model = "deepseek/deepseek-chat-v3-0324:free"; // Model OpenRouter
+        private readonly string _model = "qwen/qwen3-30b-a3b:free"; // Model OpenRouter
         private readonly Dictionary<long, List<ChatMessage>> _userConversations = new(); // Contexts for each user
 
         public OpenAIChat(string apiKey)
