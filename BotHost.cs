@@ -178,7 +178,7 @@ namespace Telegram_Task_Bot
         // Extract data from passport photo
         private async Task<string> ProcessPassport(string localFilePath,long chatId)
         {
-            var apiKey = "4c74ae489bac335b569bb4771391c646";
+            var apiKey = "2501c82bb5d7ab360cf1cdf13c94cfbd";
 
             MindeeClient mindeeClient = new MindeeClient(apiKey);
 
@@ -234,7 +234,7 @@ namespace Telegram_Task_Bot
         // Extract data from driver's license photo
         private async Task<string> ProcessLicense(string localFilePath, long chatId)
         {
-            var apiKey = "4c74ae489bac335b569bb4771391c646";
+            var apiKey = "2501c82bb5d7ab360cf1cdf13c94cfbd";
 
             MindeeClient mindeeClient = new MindeeClient(apiKey);
 
