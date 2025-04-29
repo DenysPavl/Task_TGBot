@@ -91,18 +91,7 @@ namespace Telegram_Task_Bot
                 var chatId = update.Message.Chat.Id;
                 var text = update.Message.Text.Trim();
                 var reply = await _openAI.GetResponse(chatId, text); // get response from OpenAiChat service
-                /*switch (text)
-                {
-                    case "/insurance":
-                        _userState[chatId] = "passport";
-                        _userData[chatId] = new UserDocumentData(); // Reset previous data
-                        await client.SendMessage(chatId, "Let's start applying for car insurance. First, send a passport photo.");
-                        return;
-                    default:
-                        var reply = await _openAI.GetResponse(chatId, text);  // get response from OpenAiChat service
-                        await client.SendMessage(chatId, reply);
-                        break;
-                }*/
+
                 if (string.IsNullOrWhiteSpace(reply))
                 {
                     await client.SendMessage(chatId, "Sorry, I couldn't understand. Please try again.");
@@ -113,7 +102,8 @@ namespace Telegram_Task_Bot
                 {
                     _userState[chatId] = "passport";
                     _userData[chatId] = new UserDocumentData(); // Reset previous data
-                    await client.SendMessage(chatId, "Let's start applying for car insurance. First, send a passport photo.");
+                    var confirmPrompt = await _openAI.GetResponse(chatId, $"Notify the user that they are starting to apply for auto insurance. Ask them to send a passport photo first.");
+                    await client.SendMessage(chatId, confirmPrompt);
                 }
                 else
                 {
@@ -165,17 +155,22 @@ namespace Telegram_Task_Bot
                 extractedData = await ProcessLicense(localFilePath, chatId);
 
             // Send extracted data
-            await client.SendMessage(chatId, $"Document processed. Extracted data: {extractedData} " + ParseMode.Markdown);
+            var llmResponse = await _openAI.GetResponse(chatId,$"User submitted {mode}. Here is the extracted data:\n{extractedData}\n" + "Formulate a response that the data has been processed and briefly explain the next step.");
+            await client.SendMessage(chatId, llmResponse + ParseMode.Markdown);
 
             // Switch to next step
             if (mode == "passport")
             {
                 _userState[chatId] = "license";
-                await client.SendMessage(chatId, "Now, please send a photo of your driver's license.");
+                var nextPrompt = await _openAI.GetResponse(chatId, "The user has already sent a passport photo. Create a polite message asking them to send a photo of their driver's license.");
+                await client.SendMessage(chatId, nextPrompt);
             }
             else if (mode == "license")
             {
-                await client.SendMessage(chatId, $"Please confirm the accuracy of the data above.:", replyMarkup: DataValidationKeyboard);
+                var confirmPrompt = await _openAI.GetResponse(chatId,$"The user has sent a driver's license. Previously, the following data was:\n{extractedData}\n" +
+                "Create a request for the user to confirm the correctness of the data. Do not forget to mention that this data is important for the formation of an insurance policy.");
+
+                await client.SendMessage(chatId, confirmPrompt, replyMarkup: DataValidationKeyboard);
             }
 
         }
@@ -232,7 +227,7 @@ namespace Telegram_Task_Bot
             catch (Exception ex)
             {
                 Console.WriteLine($"Error processing image: {ex.Message}");
-                return $"Error processing image";
+                return await _openAI.GetResponse(chatId, "The user sent a passport photo, but it could not be processed. Please respond politely and instruct the user to resend the photo.");
             }
         }
 
@@ -266,7 +261,7 @@ namespace Telegram_Task_Bot
             catch (Exception ex)
             {
                 Console.WriteLine($"Error processing image: {ex.Message}");
-                return $"Error processing image";
+                return await _openAI.GetResponse(chatId, "The user sent a driver's license photo, but it could not be processed. Please respond politely and instruct the user to resend the photo.");
             }
         }
 
