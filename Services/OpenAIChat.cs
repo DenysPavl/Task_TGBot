@@ -78,7 +78,7 @@ namespace Telegram_Task_Bot.Services
 
             // Return the extracted generated message from JSON
             var aiMessage = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
-
+            Console.WriteLine("OpenAI aiMessage: " + aiMessage);
             // Adding the bot's response to the story
             _userConversations[chatId].Add(new ChatMessage
             {
