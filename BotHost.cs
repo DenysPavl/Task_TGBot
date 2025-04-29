@@ -89,7 +89,8 @@ namespace Telegram_Task_Bot
             {
                 var chatId = update.Message.Chat.Id;
                 var text = update.Message.Text.Trim().ToLower();
-                switch (text)
+                var reply = await _openAI.GetResponse(chatId, text);
+                /*switch (text)
                 {
                     case "/insurance":
                         _userState[chatId] = "passport";
@@ -100,6 +101,16 @@ namespace Telegram_Task_Bot
                         var reply = await _openAI.GetResponse(chatId, text);  // get response from OpenAiChat service
                         await client.SendMessage(chatId, reply);
                         break;
+                }*/
+                if (reply.Contains("[ACTION:START_INSURANCE]"))
+                {
+                    _userState[chatId] = "passport";
+                    _userData[chatId] = new UserDocumentData(); // Reset
+                    await client.SendMessage(chatId, "Let's start applying for car insurance. First, send a passport photo.");
+                }
+                else
+                {
+                    await client.SendMessage(chatId, reply);
                 }
             }
 
