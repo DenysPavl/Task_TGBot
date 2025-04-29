@@ -13,7 +13,7 @@ namespace Telegram_Task_Bot.Services
     {
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
-        private readonly string _model = "deepseek/deepseek-r1:free"; // Model OpenRouter
+        private readonly string _model = "deepseek/deepseek-chat-v3-0324:free"; // Model OpenRouter
         private readonly Dictionary<long, List<ChatMessage>> _userConversations = new(); // Contexts for each user
 
         public OpenAIChat(string apiKey)
@@ -29,13 +29,13 @@ namespace Telegram_Task_Bot.Services
             if (!_userConversations.ContainsKey(chatId))
             {
                 _userConversations[chatId] = new List<ChatMessage>
-        {
-            new ChatMessage
             {
-                Role = "system",
-                Content = "You are a helpful, polite Telegram bot that helps with car insurance at the company Car Insurance. The price of insurance is only $100 (don't say it at the beginning of the conversation). If the user says they want insurance, respond naturally and include the tag [ACTION:START_INSURANCE]"
-            }
-        };
+                new ChatMessage
+                {
+                    Role = "system",
+                    Content = "You are a helpful, polite Telegram bot that helps with car insurance at the company Car Insurance. The price of insurance is only $100 (don't say it at the beginning of the conversation). If the user says they want insurance, respond naturally and include the tag [ACTION:START_INSURANCE]"
+                }
+            };
             }
 
             // Adding a new message from a user to the story
@@ -61,65 +61,62 @@ namespace Telegram_Task_Bot.Services
                 // Send POST request to OpenRouter endpoint
                 var response = await _httpClient.PostAsync("https://openrouter.ai/api/v1/chat/completions", content);
 
-                // Read the response content regardless of status code
+                // Read the response content
                 var responseContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine("OpenAI API response: " + responseContent);
+                Console.WriteLine("OpenAI response: " + responseContent);
 
                 if (!response.IsSuccessStatusCode)
                 {
                     Console.WriteLine($"OpenAI API error. Status: {response.StatusCode}. Content: {responseContent}");
-                    return "I'm having trouble connecting to my services right now. Please try again later.";
+                    return "Sorry, I encountered an error processing your request.";
                 }
 
-                try
+                // Parse the JSON response
+                using var doc = JsonDocument.Parse(responseContent);
+
+                // Extract the AI message from the response
+                string aiMessage = null;
+
+                // Check if the expected properties exist in the JSON
+                if (doc.RootElement.TryGetProperty("choices", out var choices) &&
+                    choices.GetArrayLength() > 0 &&
+                    choices[0].TryGetProperty("message", out var message) &&
+                    message.TryGetProperty("content", out var content_value))
                 {
-                    // Parse the JSON response
-                    using var doc = JsonDocument.Parse(responseContent);
-
-                    // Extract the generated message from JSON
-                    var aiMessage = doc.RootElement
-                        .GetProperty("choices")[0]
-                        .GetProperty("message")
-                        .GetProperty("content")
-                        .GetString();
-
-                    Console.WriteLine("OpenAI aiMessage: " + aiMessage);
-
-                    if (string.IsNullOrWhiteSpace(aiMessage))
-                    {
-                        Console.WriteLine("Empty response received from API");
-                        return "I couldn't generate a proper response. Please try again.";
-                    }
-
-                    // Adding the bot's response to the story
-                    _userConversations[chatId].Add(new ChatMessage
-                    {
-                        Role = "assistant",
-                        Content = aiMessage
-                    });
-
-                    // If the story is too long (> 30 messages), shorten it
-                    if (_userConversations[chatId].Count > 30)
-                    {
-                        // last 10 request-response pairs
-                        var systemPrompt = _userConversations[chatId].First();
-                        var lastMessages = _userConversations[chatId].Skip(Math.Max(1, _userConversations[chatId].Count - 20)).ToList();
-                        _userConversations[chatId] = new List<ChatMessage> { systemPrompt };
-                        _userConversations[chatId].AddRange(lastMessages);
-                    }
-
-                    return aiMessage;
+                    aiMessage = content_value.GetString();
                 }
-                catch (Exception ex)
+
+                if (string.IsNullOrEmpty(aiMessage))
                 {
-                    Console.WriteLine($"Error parsing API response: {ex.Message}");
-                    return "I'm having trouble processing my thoughts right now. Please try again.";
+                    Console.WriteLine("Failed to extract AI message from response");
+                    return "Sorry, I couldn't generate a proper response.";
                 }
+
+                Console.WriteLine("OpenAI aiMessage: " + aiMessage);
+
+                // Adding the bot's response to the story
+                _userConversations[chatId].Add(new ChatMessage
+                {
+                    Role = "assistant",
+                    Content = aiMessage
+                });
+
+                // If the story is too long (> 30 messages), shorten it
+                if (_userConversations[chatId].Count > 30)
+                {
+                    // last 10 request-response pairs
+                    var systemPrompt = _userConversations[chatId].First();
+                    var lastMessages = _userConversations[chatId].Skip(Math.Max(1, _userConversations[chatId].Count - 20)).ToList();
+                    _userConversations[chatId] = new List<ChatMessage> { systemPrompt };
+                    _userConversations[chatId].AddRange(lastMessages);
+                }
+
+                return aiMessage;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error calling OpenAI API: {ex.Message}");
-                return "I'm having connection issues right now. Please try again later.";
+                Console.WriteLine($"Exception in GetResponse: {ex.Message}");
+                return "Sorry, I encountered an error processing your request.";
             }
         }
     }
