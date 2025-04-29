@@ -67,6 +67,7 @@ namespace Telegram_Task_Bot.Services
 
             // Read and parse the JSON response
             var responseContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine("OpenAI response: " + responseContent);
             using var doc = JsonDocument.Parse(responseContent);
 
             // Return the extracted generated message from JSON

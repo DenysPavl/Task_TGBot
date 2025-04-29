@@ -9,6 +9,7 @@ using Mindee.Product.DriverLicense;
 using Telegram.Bot.Types.ReplyMarkups;
 using Telegram_Task_Bot.Model;
 using Telegram_Task_Bot.Services;
+using System.Text.RegularExpressions;
 
 
 namespace Telegram_Task_Bot
@@ -88,7 +89,7 @@ namespace Telegram_Task_Bot
             if (update.Message?.Text != null)
             {
                 var chatId = update.Message.Chat.Id;
-                var text = update.Message.Text.Trim().ToLower();
+                var text = update.Message.Text.Trim();
                 var reply = await _openAI.GetResponse(chatId, text);
                 /*switch (text)
                 {
@@ -102,7 +103,7 @@ namespace Telegram_Task_Bot
                         await client.SendMessage(chatId, reply);
                         break;
                 }*/
-                if (reply.Contains("[ACTION:START_INSURANCE]"))
+                if (Regex.IsMatch(reply, @"\[ACTION:START_INSURANCE\]", RegexOptions.IgnoreCase))
                 {
                     _userState[chatId] = "passport";
                     _userData[chatId] = new UserDocumentData(); // Reset
