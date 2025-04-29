@@ -90,7 +90,7 @@ namespace Telegram_Task_Bot
             {
                 var chatId = update.Message.Chat.Id;
                 var text = update.Message.Text.Trim();
-                var reply = await _openAI.GetResponse(chatId, text);
+                var reply = await _openAI.GetResponse(chatId, text); // get response from OpenAiChat service
                 /*switch (text)
                 {
                     case "/insurance":
@@ -103,16 +103,23 @@ namespace Telegram_Task_Bot
                         await client.SendMessage(chatId, reply);
                         break;
                 }*/
-                if (Regex.IsMatch(reply, @"\[ACTION:START_INSURANCE\]", RegexOptions.IgnoreCase))
+                if (string.IsNullOrWhiteSpace(reply))
+                {
+                    await client.SendMessage(chatId, "Sorry, I couldn't understand. Please try again.");
+                    return;
+                }
+
+                if (reply.Contains("[ACTION:START_INSURANCE]"))
                 {
                     _userState[chatId] = "passport";
-                    _userData[chatId] = new UserDocumentData(); // Reset
+                    _userData[chatId] = new UserDocumentData(); // Reset previous data
                     await client.SendMessage(chatId, "Let's start applying for car insurance. First, send a passport photo.");
                 }
                 else
                 {
                     await client.SendMessage(chatId, reply);
                 }
+
             }
 
             // Handle incoming photo messages

@@ -33,7 +33,7 @@ namespace Telegram_Task_Bot.Services
                     new ChatMessage
                     {
                         Role = "system",
-                        Content = "You are a helpful, polite Telegram bot that helps with car insurance at the company `Car Insurance`. The price of insurance is only $100 (don't say it at the beginning of the conversation). If the user says they want insurance, respond naturally and include the tag [ACTION:START_INSURANCE]. Do not mention the tag explicitly to the user."
+                        Content = "You are a helpful, polite Telegram bot that helps with car insurance at the company `Car Insurance`. The price of insurance is only $100 (don't say it at the beginning of the conversation). If the user says they want insurance, respond naturally and include the tag [ACTION:START_INSURANCE]"
                     }
                 };
             }
@@ -68,6 +68,12 @@ namespace Telegram_Task_Bot.Services
             // Read and parse the JSON response
             var responseContent = await response.Content.ReadAsStringAsync();
             Console.WriteLine("OpenAI response: " + responseContent);
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"OpenAI API error. Status: {response.StatusCode}. Content: {responseContent}");
+                return null;
+            }
+
             using var doc = JsonDocument.Parse(responseContent);
 
             // Return the extracted generated message from JSON
