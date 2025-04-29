@@ -43,7 +43,42 @@ namespace Telegram_Task_Bot
             // Handle button presses (callback queries)
             if (update.CallbackQuery != null)
             {
-                await HandleCallback(client, update.CallbackQuery);
+                var chatId = update.CallbackQuery.Message.Chat.Id;
+                var callbackData = update.CallbackQuery.Data;
+
+                if (callbackData == "correct")
+                {
+                    await client.EditMessageReplyMarkup(chatId: chatId, messageId: update.CallbackQuery.Message.MessageId); // The keyboard disappears
+                    await client.SendMessage(chatId, "The price of insurance is $100. Do you agree?", replyMarkup: InsuranceConsentKeyboard);
+                }
+                else if (callbackData == "resend")
+                {
+                    await client.EditMessageReplyMarkup(chatId: chatId, messageId: update.CallbackQuery.Message.MessageId); // The keyboard disappears
+                    _userState[chatId] = "passport";
+                    await client.SendMessage(chatId, "Please send your passport photo again.");
+                }
+                else if (callbackData == "agree")
+                {
+                    await client.EditMessageReplyMarkup(chatId: chatId, messageId: update.CallbackQuery.Message.MessageId); // The keyboard disappears
+
+                    if (string.IsNullOrEmpty(_userData[chatId].PassportIdNumber))  // Check if data is complete
+                    {
+                        _userState[chatId] = "passport";
+                        await client.SendMessage(chatId, "There was an error with your passport data! Please send a photo of your passport.");
+                    }
+                    else if (string.IsNullOrEmpty(_userData[chatId].DriversLicenseIdNumber)) // Check if data is complete
+                    {
+                        _userState[chatId] = "license";
+                        await client.SendMessage(chatId, "There was an error with your driver's license data! Please send a photo of your driver's license.");
+                    }
+                    else
+                        await client.SendMessage(chatId, $"📄 Your insurance policy:\n\n{GenerateInsurancePolicy(_userData[chatId].GivenName, _userData[chatId].Surname, _userData[chatId].PassportIdNumber, _userData[chatId].DriversLicenseIdNumber)}");
+
+                }
+                else if (callbackData == "disagree")
+                {
+                    await client.SendMessage(chatId, "Sorry, but $100 is the only available price.");
+                }
                 return;
             }
 
@@ -120,7 +155,7 @@ namespace Telegram_Task_Bot
                 extractedData = await ProcessLicense(localFilePath, chatId);
 
             // Send extracted data
-            var llmResponse = await _openAI.GetResponse(chatId,$"User submitted {mode}. Here is the extracted data:\n{extractedData}\n" + "Formulate a response that the data has been processed and briefly explain the next step.");
+            var llmResponse = await _openAI.GetResponse(chatId,$"User submitted {mode}. Here is the extracted data:\n{extractedData}\n" + "Formulate a response that the data has been processed");
             await client.SendMessage(chatId, llmResponse, parseMode: ParseMode.Markdown, cancellationToken: token);
 
 
@@ -139,53 +174,6 @@ namespace Telegram_Task_Bot
                 await client.SendMessage(chatId, confirmPrompt, replyMarkup: DataValidationKeyboard);
             }
 
-        }
-        private async Task HandleCallback(ITelegramBotClient client, CallbackQuery callback)
-        {
-            var chatId = callback.Message.Chat.Id;
-            var messageId = callback.Message.MessageId;
-            var data = callback.Data;
-
-            Console.WriteLine($"Callback: {data} from user {chatId}");
-
-            await client.EditMessageReplyMarkup(chatId, messageId); // remove keyboard
-
-            if (!_userData.TryGetValue(chatId, out var userData))
-                _userData[chatId] = new UserDocumentData();
-
-            switch (data)
-            {
-                case "correct":
-                    await client.SendMessage(chatId, "The price of insurance is $100. Do you agree?", replyMarkup: InsuranceConsentKeyboard);
-                    break;
-
-                case "resend":
-                    _userState[chatId] = "passport";
-                    await client.SendMessage(chatId, "Please send your passport photo again.");
-                    break;
-
-                case "agree":
-                    if (string.IsNullOrEmpty(userData.PassportIdNumber))
-                    {
-                        _userState[chatId] = "passport";
-                        await client.SendMessage(chatId, "Passport data missing! Please resend passport photo.");
-                    }
-                    else if (string.IsNullOrEmpty(userData.DriversLicenseIdNumber))
-                    {
-                        _userState[chatId] = "license";
-                        await client.SendMessage(chatId, "Driver’s license data missing! Please resend license photo.");
-                    }
-                    else
-                    {
-                        var policy = GenerateInsurancePolicy(userData.GivenName, userData.Surname, userData.DriversLicenseIdNumber, userData.PassportIdNumber);
-                        await client.SendMessage(chatId, $"📄 Your insurance policy:\n\n{policy}", cancellationToken: default);
-                    }
-                    break;
-
-                case "disagree":
-                    await client.SendMessage(chatId, "Sorry, but $100 is the only available price.");
-                    break;
-            }
         }
 
         // Extract data from passport photo
