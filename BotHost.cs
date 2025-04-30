@@ -164,7 +164,7 @@ namespace Telegram_Task_Bot
                 extractedData = await ProcessLicense(localFilePath, chatId);
 
             // Send extracted data
-            var llmResponse = await _openAI.GetResponse(chatId,$"User submitted {mode}. Here is the extracted data:\n{extractedData}\n" + "Formulate a response that the data has been processed");
+            var llmResponse = await _openAI.GetResponse(chatId,$"User submitted {mode}. Here is the extracted data:\n{extractedData}\n" + "Formulate a response that the data has been processed. Don't talk about next steps.");
             await client.SendMessage(chatId, llmResponse, parseMode: ParseMode.Markdown, cancellationToken: token);
 
 
