@@ -248,7 +248,7 @@ namespace Telegram_Task_Bot
 
                 var p = response.Document.Inference.Prediction;
 
-                _userData[chatId].DriversLicenseIdNumber = p.Id.Value;    // We store data in a ConcurrentDictionary
+                _userData[chatId].DriversLicenseIdNumber = p.Id?.Value;    // We store data in a ConcurrentDictionary
 
                 return
                     $"🚗 **Driver's License Data:**\n" +
