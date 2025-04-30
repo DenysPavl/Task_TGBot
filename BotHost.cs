@@ -10,6 +10,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 using Telegram_Task_Bot.Model;
 using Telegram_Task_Bot.Services;
 using System.Text.RegularExpressions;
+using static System.Net.Mime.MediaTypeNames;
 
 
 namespace Telegram_Task_Bot
@@ -45,17 +46,19 @@ namespace Telegram_Task_Bot
             {
                 var chatId = update.CallbackQuery.Message.Chat.Id;
                 var callbackData = update.CallbackQuery.Data;
-
+                var reply="";
                 if (callbackData == "correct")
                 {
                     await client.EditMessageReplyMarkup(chatId: chatId, messageId: update.CallbackQuery.Message.MessageId); // The keyboard disappears
-                    await client.SendMessage(chatId, "The price of insurance is $100. Do you agree?", replyMarkup: InsuranceConsentKeyboard);
+                    reply = await _openAI.GetResponse(chatId, "The cost of the insurance is $100. Ask the client if they agree. They will have two buttons to choose from: Agree and Disagree.");
+                    await client.SendMessage(chatId, reply, replyMarkup: InsuranceConsentKeyboard);
                 }
                 else if (callbackData == "resend")
                 {
                     await client.EditMessageReplyMarkup(chatId: chatId, messageId: update.CallbackQuery.Message.MessageId); // The keyboard disappears
                     _userState[chatId] = "passport";
-                    await client.SendMessage(chatId, "Please send your passport photo again.");
+                    reply = await _openAI.GetResponse(chatId, "Please ask the user to send the passport photo again.");
+                    await client.SendMessage(chatId, reply);
                 }
                 else if (callbackData == "agree")
                 {
@@ -64,20 +67,26 @@ namespace Telegram_Task_Bot
                     if (string.IsNullOrEmpty(_userData[chatId].PassportIdNumber))  // Check if data is complete
                     {
                         _userState[chatId] = "passport";
-                        await client.SendMessage(chatId, "There was an error with your passport data! Please send a photo of your passport.");
+                        reply = await _openAI.GetResponse(chatId, "Notify the user that there is an error with your passport data! Please send a photo of your passport.");
+                        await client.SendMessage(chatId, reply);
                     }
                     else if (string.IsNullOrEmpty(_userData[chatId].DriversLicenseIdNumber)) // Check if data is complete
                     {
                         _userState[chatId] = "license";
-                        await client.SendMessage(chatId, "There was an error with your driver's license data! Please send a photo of your driver's license.");
+                        reply = await _openAI.GetResponse(chatId, "Notify the user that there is an error with your driver's license data! Please send a photo of your driver's license.");
+                        await client.SendMessage(chatId, reply);
                     }
                     else
-                        await client.SendMessage(chatId, $"📄 Your insurance policy:\n\n{GenerateInsurancePolicy(_userData[chatId].GivenName, _userData[chatId].Surname, _userData[chatId].PassportIdNumber, _userData[chatId].DriversLicenseIdNumber)}");
+                    {
+                        reply = await _openAI.GetResponse(chatId, " Notify the user about successful policy registration!");
+                        await client.SendMessage(chatId, $"{reply} \n\n{GenerateInsurancePolicy(_userData[chatId].GivenName, _userData[chatId].Surname, _userData[chatId].PassportIdNumber, _userData[chatId].DriversLicenseIdNumber)}");
+                    }
 
                 }
                 else if (callbackData == "disagree")
                 {
-                    await client.SendMessage(chatId, "Sorry, but $100 is the only available price.");
+                    reply = await _openAI.GetResponse(chatId, "Apologize and tell the customer that $100 is the only price available.");
+                    await client.SendMessage(chatId, reply);
                 }
                 return;
             }
@@ -169,7 +178,7 @@ namespace Telegram_Task_Bot
             else if (mode == "license")
             {
                 var confirmPrompt = await _openAI.GetResponse(chatId,$"The user has sent a driver's license. Previously, the following data was:\n{extractedData}\n" +
-                "Create a request for the user to confirm the correctness of the data. Do not forget to mention that this data is important for the formation of an insurance policy.");
+                "Create a request for the user to confirm the correctness of the data. The user must click the Correct or Resend button. Do not forget to mention that this data is important for the formation of the insurance policy");
 
                 await client.SendMessage(chatId, confirmPrompt, replyMarkup: DataValidationKeyboard);
             }
